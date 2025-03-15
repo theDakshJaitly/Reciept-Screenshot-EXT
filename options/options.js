@@ -1,30 +1,50 @@
 // Move this function outside the DOMContentLoaded event listener
 function showSavedMessage() {
     const statusElement = document.getElementById('status');
+    const saveWarning = document.getElementById('saveWarning');
+    const saveButton = document.getElementById('saveSettings');
+    
     if (!statusElement) return;
-
+    
+    hasUnsavedChanges = false;
+    saveWarning.classList.remove('show');
+    saveButton.classList.remove('show-save');
+    
     statusElement.textContent = 'Settings saved successfully!';
     statusElement.style.backgroundColor = '#e8f5e9';
     statusElement.style.color = '#2e7d32';
-    statusElement.style.padding = '10px';
-    statusElement.style.borderRadius = '4px';
-    statusElement.style.marginTop = '20px';
-
-    // Clear the message after 2 seconds
+    statusElement.classList.add('show');
+    
     setTimeout(() => {
-        statusElement.textContent = '';
-        statusElement.style.backgroundColor = '#f5f5f5';
+        statusElement.classList.remove('show');
     }, 2000);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Add at the beginning of the DOMContentLoaded event listener
+    let hasUnsavedChanges = false;
+
+    // Function to show unsaved changes warning
+    function showUnsavedChanges() {
+        if (!hasUnsavedChanges) {
+            hasUnsavedChanges = true;
+            document.getElementById('saveWarning').classList.add('show');
+            document.getElementById('saveSettings').classList.add('show-save');
+        }
+    }
+
+    // Add event listeners for all inputs to detect changes
+    function addChangeListeners() {
+        const inputs = document.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            input.addEventListener('change', showUnsavedChanges);
+        });
+    }
+
     // Get form elements
     const autoDetectToggle = document.getElementById('autoDetect');
     const showNotificationsToggle = document.getElementById('showNotifications');
     const detectionThreshold = document.getElementById('detectionThreshold');
-    const saveFolderInput = document.getElementById('saveFolder');
-    const chooseFolderBtn = document.getElementById('chooseFolderBtn');
-    const filenameFormat = document.getElementById('filenameFormat');
     const strongKeywordsContainer = document.getElementById('strongKeywords');
     const supportingKeywordsContainer = document.getElementById('supportingKeywords');
     const newStrongKeywordInput = document.getElementById('newStrongKeyword');
@@ -36,6 +56,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const saveSettingsBtn = document.getElementById('saveSettings');
     const statusElement = document.getElementById('status');
     const cropScreenshotToggle = document.getElementById('cropScreenshot');
+    const fileNameFormatInput = document.getElementById('fileNameFormat');
     
     // Default detection keywords
     const defaultStrongKeywords = [
@@ -54,7 +75,6 @@ document.addEventListener('DOMContentLoaded', function() {
     loadSettings();
     
     // Event listeners
-    chooseFolderBtn.addEventListener('click', chooseSaveFolder);
     addStrongKeywordBtn.addEventListener('click', () => addKeyword('strong'));
     addSupportingKeywordBtn.addEventListener('click', () => addKeyword('supporting'));
     saveSettingsBtn.addEventListener('click', saveSettings);
@@ -66,23 +86,21 @@ document.addEventListener('DOMContentLoaded', function() {
         autoDetect: true,
         showNotifications: true,
         detectionThreshold: 7,
-        saveFolder: '',
-        filenameFormat: 'receipt_{hostname}_{date}',
         strongKeywords: defaultStrongKeywords,
         supportingKeywords: defaultSupportingKeywords,
         screenshotDelay: true,
         delayTime: 500,
-        cropScreenshot: true // Add default value
+        cropScreenshot: true,
+        fileNameFormat: 'receipt_{date}_{time}'
       }, function(items) {
         // Set form values
         autoDetectToggle.checked = items.autoDetect;
         showNotificationsToggle.checked = items.showNotifications;
         detectionThreshold.value = items.detectionThreshold;
-        saveFolderInput.value = items.saveFolder;
-        filenameFormat.value = items.filenameFormat;
         screenshotDelayToggle.checked = items.screenshotDelay;
         delayTimeInput.value = items.delayTime;
         cropScreenshotToggle.checked = items.cropScreenshot;
+        fileNameFormatInput.value = items.fileNameFormat;
         
         // Render keywords
         renderKeywords('strong', items.strongKeywords);
@@ -91,6 +109,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update sensitivity description
         updateSensitivityDescription(items.detectionThreshold);
       });
+
+      // Add to the end of loadSettings function
+      addChangeListeners();
     }
     
     // Add new function to update sensitivity description
@@ -126,13 +147,12 @@ document.addEventListener('DOMContentLoaded', function() {
         autoDetect: autoDetectToggle.checked,
         showNotifications: showNotificationsToggle.checked,
         detectionThreshold: parseInt(detectionThreshold.value),
-        saveFolder: saveFolderInput.value,
-        filenameFormat: filenameFormat.value,
         strongKeywords: strongKeywords,
         supportingKeywords: supportingKeywords,
         screenshotDelay: screenshotDelayToggle.checked,
         delayTime: parseInt(delayTimeInput.value),
-        cropScreenshot: cropScreenshotToggle.checked
+        cropScreenshot: cropScreenshotToggle.checked,
+        fileNameFormat: fileNameFormatInput.value || 'receipt_{date}_{time}'
       };
 
       chrome.storage.sync.set(settings, function() {
@@ -164,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function() {
         keywordSpan.textContent = keyword;
         
         const removeButton = document.createElement('button');
-        removeButton.textContent = '×';
+        removeButton.setAttribute('aria-label', 'Remove keyword');
         removeButton.title = 'Remove';
         removeButton.addEventListener('click', () => removeKeyword(type, keywordElement));
         
@@ -193,22 +213,22 @@ document.addEventListener('DOMContentLoaded', function() {
       keywordSpan.textContent = keyword;
       
       const removeButton = document.createElement('button');
-      removeButton.textContent = '×';
+      removeButton.setAttribute('aria-label', 'Remove keyword');
       removeButton.title = 'Remove';
       removeButton.addEventListener('click', () => removeKeyword(type, keywordElement));
       
       keywordElement.appendChild(keywordSpan);
       keywordElement.appendChild(removeButton);
       container.appendChild(keywordElement);
-      
-      // Clear input
       input.value = '';
+      showUnsavedChanges();
     }
     
     // Function to remove keyword
     function removeKeyword(type, element) {
       const container = type === 'strong' ? strongKeywordsContainer : supportingKeywordsContainer;
       container.removeChild(element);
+      showUnsavedChanges();
     }
     
     // Function to choose save folder

@@ -1,0 +1,302 @@
+:root {
+  --primary-color: #1a73e8;
+  --primary-hover: #1557b0;
+  --surface-color: #f8f9fa;
+  --border-color: #e8eaed;
+  --text-primary: #202124;
+  --text-secondary: #5f6368;
+  --green-success: #0f9d58;
+  --red-delete: #dc3545;
+  --keyword-bg: #e8f0fe;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+h1 {
+  color: var(--primary-color);
+  font-size: 28px;
+  font-weight: 500;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.section {
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow);
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+input[type="text"],
+input[type="number"],
+select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+input[type="text"]::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: var(--primary-hover);
+}
+
+/* Toggle Switch */
+.toggle-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.toggle-container > span {
+  padding-top: 2px;
+}
+
+/* Add styles for when toggle container has a description */
+.toggle-container + .setting-description {
+  margin-left: 58px;
+  margin-top: 4px;
+}
+
+/* Ensure consistent toggle switch appearance */
+.toggle {
+  position: relative;
+  display: inline-block;
+  min-width: 46px;
+  height: 24px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .3s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+  box-shadow: var(--shadow);
+}
+
+input:checked + .slider {
+  background-color: var(--primary-color);
+}
+
+input:checked + .slider:before {
+  transform: translateX(22px);
+}
+
+/* Keywords */
+.keywords-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.keyword {
+  background-color: var(--keyword-bg);
+  padding: 6px 12px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+/* Update the existing keyword button styles */
+.keyword button {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-family: 'Material Icons';
+}
+
+.keyword button::before {
+  content: "close";
+  font-size: 16px;
+}
+
+.keyword button:hover {
+  background-color: rgba(220, 53, 69, 0.1);
+  color: var(--red-delete);
+}
+
+.add-keyword {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.add-keyword input {
+  flex-grow: 1;
+}
+
+.setting-description {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.setting-description br {
+  margin-bottom: 4px;
+}
+
+.status {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 12px 24px;
+  border-radius: 4px;
+  background-color: var(--surface-color);
+  text-align: center;
+  transition: all 0.3s ease;
+  opacity: 0;
+  transform: translateY(10px);
+  z-index: 1000;
+}
+
+.status.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#saveSettings {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  margin-top: 24px;
+}
+
+/* Add new styles for the floating save button */
+.save-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  z-index: 1000;
+}
+
+#saveSettings {
+  background-color: var(--primary-color);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  opacity: 0.3;
+}
+
+#saveSettings.show-save {
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+#saveSettings:hover {
+  background-color: var(--primary-hover);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.save-warning {
+  background-color: #fff3e0;
+  color: #e65100;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+}
+
+.save-warning.show {
+  opacity: 1;
+  transform: translateY(0);
+}

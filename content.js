@@ -10,6 +10,10 @@ let settings = {
   cropScreenshot: true  // Add this line
 };
 
+// Add these variables at the top with other configurations
+let hasScreenshotTaken = false;
+let observerTimeout = null;
+
 // Load settings from storage
 chrome.storage.sync.get({
   // Default values
@@ -46,30 +50,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({success: false, error: error.toString()});
       });
     return true; // Keep the message channel open for async response
+  } else if (message.action === 'settingsUpdated') {
+    settings = message.settings;
+    autoDetectEnabled = settings.autoDetect;
+    hasScreenshotTaken = false; // Reset flag
+    setupDynamicDetection(); // This will handle any new detection if needed
+    sendResponse({success: true});
+  } else if (message.action === 'manualCapture') {
+    hasScreenshotTaken = false; // Reset flag for manual capture
+    detectReceipt().then(score => {
+      if (score) {
+        captureReceipt();
+      }
+    });
+    sendResponse({success: true});
   }
-});
-
-// Add listener for settings updates
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'settingsUpdated') {
-        // Update local settings
-        settings = message.settings;
-        
-        // Re-run detection if needed
-        if (autoDetectEnabled) {
-            detectReceipt().then(isReceipt => {
-                if (isReceipt) {
-                    console.log('Receipt detected after settings update!');
-                    if (settings.showNotifications) {
-                        showToast('Receipt detected! Taking screenshot...');
-                    }
-                    captureReceipt();
-                }
-            });
-        }
-        
-        sendResponse({success: true});
-    }
 });
 
 // Function to detect receipts on the page
@@ -514,16 +509,98 @@ async function captureReceipt() {
   }
 }
 
-// Initialize - run receipt detection when page fully loads
-window.addEventListener('load', () => {
+// Add this function after detectReceipt()
+function setupDynamicDetection() {
+  const observer = new MutationObserver((mutations) => {
+    if (hasScreenshotTaken) {
+      observer.disconnect();
+      return;
+    }
+    
+    if (observerTimeout) {
+      clearTimeout(observerTimeout);
+    }
+    
+    observerTimeout = setTimeout(async () => {
+      if (hasScreenshotTaken) return;
+      
+      const score = await detectReceipt();
+      console.log('DOM change detection - Receipt score:', score);
+      if (autoDetectEnabled && score) {
+        console.log('Receipt detected after DOM change!');
+        if (settings.showNotifications) {
+          showToast('Receipt detected! Taking screenshot...');
+        }
+        hasScreenshotTaken = true;
+        await captureReceipt();
+        observer.disconnect();
+      }
+    }, 1000);
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    characterData: true
+  });
+
+  // Enhanced click event handler
+  document.addEventListener('click', async (e) => {
+    if (hasScreenshotTaken) return;
+    
+    const target = e.target.closest('button, a, [role="button"], input[type="submit"]');
+    if (!target) return;
+
+    // Consolidate checks into a single function
+    async function checkForReceipt(delay) {
+      await new Promise(resolve => setTimeout(async () => {
+        if (hasScreenshotTaken) {
+          resolve();
+          return;
+        }
+        
+        const score = await detectReceipt();
+        console.log(`Button click check after ${delay}ms - Receipt score:`, score);
+        
+        if (autoDetectEnabled && score) {
+          console.log('Receipt detected after button click!');
+          if (settings.showNotifications) {
+            showToast('Receipt detected! Taking screenshot...');
+          }
+          hasScreenshotTaken = true;
+          await captureReceipt();
+        }
+        resolve();
+      }, delay));
+    }
+
+    // Sequential checks with early exit
+    for (const delay of [500, 1000, 2000]) {
+      if (hasScreenshotTaken) break;
+      await checkForReceipt(delay);
+    }
+  }, true);
+}
+
+// Update the window load event listener
+window.addEventListener('load', async () => {
+  if (hasScreenshotTaken) return;
+  
   // Short delay to ensure all content is loaded
-  setTimeout(() => {
-    if (autoDetectEnabled && detectReceipt()) {
-      console.log('Receipt detected on page!');
+  setTimeout(async () => {
+    if (hasScreenshotTaken) return;
+    
+    if (autoDetectEnabled && await detectReceipt()) {
+      console.log('Receipt detected on page load!');
       if (settings.showNotifications) {
         showToast('Receipt detected! Taking screenshot...');
       }
-      captureReceipt();
+      hasScreenshotTaken = true;
+      await captureReceipt();
+    } else if (!hasScreenshotTaken) {
+      // Only setup dynamic detection if no receipt found initially
+      setupDynamicDetection();
     }
   }, 1500);
 });

@@ -8,6 +8,8 @@
   --text-primary: #1f1f1f;
   --text-secondary: #5f6368;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --feedback-color: #34A853;  /* Google's green color */
+  --feedback-hover: #2E9548;
 }
 
 body {
@@ -57,6 +59,20 @@ button:hover {
 
 button.danger {
   background-color: var(--danger-color);
+}
+
+button.settings {
+  background-color: transparent;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  box-shadow: none;
+}
+
+button.settings:hover {
+  background-color: var(--surface-color);
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  filter: none;
 }
 
 .toggle-container {
@@ -185,4 +201,38 @@ input:checked + .slider:before {
 
 .blocked-sites::-webkit-scrollbar-thumb:hover {
   background: #bdc1c6;
+}
+
+.feedback-container {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.feedback-button {
+  background-color: var(--feedback-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  width: auto;
+  margin: 0 auto;
+}
+
+.feedback-button:hover {
+  background-color: var(--feedback-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(52, 168, 83, 0.2);
+}
+
+.feedback-icon {
+  font-size: 18px;
+  color: white;
 }

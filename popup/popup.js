@@ -70,6 +70,12 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('openOptions').addEventListener('click', function() {
     chrome.runtime.openOptionsPage();
   });
+
+  document.getElementById('feedback').addEventListener('click', function() {
+    chrome.tabs.create({
+      url: 'https://forms.gle/YOUR_FORM_URL_HERE'
+    });
+  });
   
   // Function to load blocked websites
   function loadBlockedWebsites() {

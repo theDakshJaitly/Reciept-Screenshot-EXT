@@ -3,6 +3,7 @@
 <head>
   <title>Receipt Screenshot</title>
   <link rel="stylesheet" href="popup.css">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
   <div class="title">Receipt Screenshot</div>
@@ -19,7 +20,7 @@
   
   <button id="manualScreenshot">Take Screenshot Now</button>
   <button id="blockSite" class="danger">Block This Website</button>
-  <button id="openOptions">Settings</button>
+  <button id="openOptions" class="settings">Settings</button>
   
   <div class="divider"></div>
   
@@ -28,6 +29,13 @@
     <div class="site-item">No websites blocked yet</div>
   </div>
   
+  <div class="feedback-container">
+    <button id="feedback" class="feedback-button">
+      <span class="material-icons feedback-icon">feedback</span>
+      Share Feedback
+    </button>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>

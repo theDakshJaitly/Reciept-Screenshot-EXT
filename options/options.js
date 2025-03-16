@@ -1,4 +1,8 @@
-// Move this function outside the DOMContentLoaded event listener
+// Global variables
+let hasUnsavedChanges = false;
+let elements = {};
+
+// Move message handlers outside DOMContentLoaded
 function showSavedMessage() {
     const statusElement = document.getElementById('status');
     const saveWarning = document.getElementById('saveWarning');
@@ -7,8 +11,8 @@ function showSavedMessage() {
     if (!statusElement) return;
     
     hasUnsavedChanges = false;
-    saveWarning.classList.remove('show');
-    saveButton.classList.remove('show-save');
+    if (saveWarning) saveWarning.classList.remove('show');
+    if (saveButton) saveButton.classList.remove('show-save');
     
     statusElement.textContent = 'Settings saved successfully!';
     statusElement.style.backgroundColor = '#e8f5e9';
@@ -20,9 +24,86 @@ function showSavedMessage() {
     }, 2000);
 }
 
+function showUnsavedChanges() {
+    if (!hasUnsavedChanges) {
+        hasUnsavedChanges = true;
+        document.getElementById('saveWarning').classList.add('show');
+        document.getElementById('saveSettings').classList.add('show-save');
+    }
+}
+
+// Save settings function outside DOMContentLoaded
+function saveSettings() {
+    const strongKeywords = [];
+    document.querySelectorAll('#strongKeywords .keyword').forEach(element => {
+        strongKeywords.push(element.dataset.keyword);
+    });
+    
+    const supportingKeywords = [];
+    document.querySelectorAll('#supportingKeywords .keyword').forEach(element => {
+        supportingKeywords.push(element.dataset.keyword);
+    });
+    
+    const settings = {
+        autoDetect: elements.autoDetectToggle.checked,
+        showNotifications: elements.showNotificationsToggle.checked,
+        detectionThreshold: parseInt(elements.detectionThreshold.value),
+        strongKeywords: strongKeywords,
+        supportingKeywords: supportingKeywords,
+        screenshotDelay: elements.screenshotDelayToggle.checked,
+        delayTime: parseInt(elements.delayTimeInput.value),
+        cropScreenshot: elements.cropScreenshotToggle.checked,
+        fileNameFormat: elements.fileNameFormatInput.value || 'receipt_{date}_{time}'
+    };
+
+    chrome.storage.sync.set(settings, () => {
+        if (chrome.runtime.lastError) {
+            console.error('Error saving settings:', chrome.runtime.lastError);
+            return;
+        }
+
+        showSavedMessage();
+        
+        chrome.tabs.query({}, (tabs) => {
+            tabs.forEach(tab => {
+                try {
+                    chrome.tabs.sendMessage(tab.id, {
+                        action: 'settingsUpdated',
+                        settings: settings
+                    });
+                } catch (error) {
+                    console.log('Could not update tab:', tab.id, error);
+                }
+            });
+        });
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Add at the beginning of the DOMContentLoaded event listener
-    let hasUnsavedChanges = false;
+    // Cache DOM elements
+    elements = {
+        autoDetectToggle: document.getElementById('autoDetect'),
+        showNotificationsToggle: document.getElementById('showNotifications'),
+        detectionThreshold: document.getElementById('detectionThreshold'),
+        strongKeywordsContainer: document.getElementById('strongKeywords'),
+        supportingKeywordsContainer: document.getElementById('supportingKeywords'),
+        newStrongKeywordInput: document.getElementById('newStrongKeyword'),
+        addStrongKeywordBtn: document.getElementById('addStrongKeyword'),
+        newSupportingKeywordInput: document.getElementById('newSupportingKeyword'),
+        addSupportingKeywordBtn: document.getElementById('addSupportingKeyword'),
+        screenshotDelayToggle: document.getElementById('screenshotDelay'),
+        delayTimeInput: document.getElementById('delayTime'),
+        saveSettingsBtn: document.getElementById('saveSettings'),
+        cropScreenshotToggle: document.getElementById('cropScreenshot'),
+        fileNameFormatInput: document.getElementById('fileNameFormat'),
+        statusElement: document.getElementById('status')
+    };
+
+    // Add event listeners
+    elements.saveSettingsBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        saveSettings();
+    });
 
     // Function to show unsaved changes warning
     function showUnsavedChanges() {
@@ -77,7 +158,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event listeners
     addStrongKeywordBtn.addEventListener('click', () => addKeyword('strong'));
     addSupportingKeywordBtn.addEventListener('click', () => addKeyword('supporting'));
-    saveSettingsBtn.addEventListener('click', saveSettings);
+    saveSettingsBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      saveSettings();
+    });
     
     // Function to load settings
     function loadSettings() {
@@ -155,17 +239,28 @@ document.addEventListener('DOMContentLoaded', function() {
         fileNameFormat: fileNameFormatInput.value || 'receipt_{date}_{time}'
       };
 
-      chrome.storage.sync.set(settings, function() {
-        showSavedMessage(); // This should now work
+      // Save to storage and notify content script
+      chrome.storage.sync.set(settings, () => {
+        if (chrome.runtime.lastError) {
+          console.error('Error saving settings:', chrome.runtime.lastError);
+          return;
+        }
+
+        // Show saved message
+        showSavedMessage();
         
-        // Notify content script of settings change
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-          if (tabs[0]) {
-            chrome.tabs.sendMessage(tabs[0].id, {
-              action: 'settingsUpdated',
-              settings: settings
-            });
-          }
+        // Notify all tabs about the settings change
+        chrome.tabs.query({}, (tabs) => {
+          tabs.forEach(tab => {
+            try {
+              chrome.tabs.sendMessage(tab.id, {
+                action: 'settingsUpdated',
+                settings: settings
+              });
+            } catch (error) {
+              console.log('Could not update tab:', tab.id, error);
+            }
+          });
         });
       });
     }
@@ -249,4 +344,18 @@ document.addEventListener('DOMContentLoaded', function() {
         statusElement.textContent = 'Save location updated';
       }
     }
+
+    // Add validation for the file name format
+    document.getElementById('fileNameFormat').addEventListener('input', function(e) {
+      const value = e.target.value;
+      const isValid = value.includes('{date}') || value.includes('{time}') || value.includes('{website}');
+      
+      if (!isValid && value.length > 0) {
+        e.target.setCustomValidity('Must include at least one of: {date}, {time}, or {website}');
+      } else {
+        e.target.setCustomValidity('');
+      }
+      
+      showUnsavedChanges();
+    });
   });

@@ -7,7 +7,8 @@ let settings = {
   showNotifications: true,
   screenshotDelay: true,
   delayTime: 500,
-  cropScreenshot: true  // Add this line
+  cropScreenshot: true,  // Add this line
+  fileNameFormat: 'receipt_{date}_{time}'
 };
 
 // Add these variables at the top with other configurations
@@ -482,12 +483,29 @@ async function captureReceipt() {
     // Convert to data URL
     const imageData = canvas.toDataURL('image/png', 1.0);
 
-    // Send to background script
+    // Generate filename using format
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+    const websiteStr = window.location.hostname.replace(/^www\./, '');
+
+    let fileName = settings.fileNameFormat
+      .replace('{date}', dateStr)
+      .replace('{time}', timeStr)
+      .replace('{website}', websiteStr);
+
+    // Add .png extension if not present
+    if (!fileName.toLowerCase().endsWith('.png')) {
+      fileName += '.png';
+    }
+
+    // Use the generated filename in chrome.runtime.sendMessage
     return new Promise((resolve, reject) => {
       chrome.runtime.sendMessage({
         action: 'saveScreenshot',
         imageData: imageData,
-        originalUrl: window.location.href
+        originalUrl: window.location.href,
+        fileName: fileName
       }, (response) => {
         if (chrome.runtime.lastError) {
           reject(chrome.runtime.lastError);

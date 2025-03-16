@@ -300,3 +300,16 @@ input:checked + .slider:before {
   opacity: 1;
   transform: translateY(0);
 }
+
+#fileNameFormat {
+  font-family: monospace;
+  letter-spacing: 0.5px;
+}
+
+#fileNameFormat:invalid {
+  border-color: var(--danger-color);
+}
+
+#fileNameFormat:invalid + .setting-description {
+  color: var(--danger-color);
+}

@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Receipt Screenshot",
+  "name": "Receipt Saver",
   "version": "1.0",
   "description": "Automatically detects receipts on webpages and takes screenshots",
   "permissions": [

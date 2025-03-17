@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   document.getElementById('feedback').addEventListener('click', function() {
     chrome.tabs.create({
-      url: 'https://forms.gle/YOUR_FORM_URL_HERE'
+      url: 'https://docs.google.com/forms/d/e/1FAIpQLSfxbdsgfirZYAEc_mzh6k0RxDQ8a3sY9N6JN9YHlYbisWSjhQ/viewform?usp=dialog'
     });
   });
   

@@ -37,12 +37,6 @@
       "run_at": "document_idle"
     }
   ],
-  "web_accessible_resources": [
-    {
-      "resources": ["detection.js"],
-      "matches": ["<all_urls>"]
-    }
-  ],
   "options_ui": {
     "page": "options/options.html",
     "open_in_tab": true

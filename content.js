@@ -7,8 +7,8 @@ let settings = {
   showNotifications: true,
   screenshotDelay: true,
   delayTime: 500,
-  cropScreenshot: true,  // Add this line
-  fileNameFormat: 'receipt_{date}_{time}'
+  cropScreenshot: true,
+  fileNameFormat: 'receipt_{date}_{time}'  // Add default value
 };
 
 // Add these variables at the top with other configurations
@@ -32,7 +32,8 @@ chrome.storage.sync.get({
     'unit price', 'discount', 'payment', 'due date', 'account number'
   ],
   screenshotDelay: true,
-  delayTime: 500
+  delayTime: 500,
+  fileNameFormat: 'receipt_{date}_{time}'  // Add default value
 }, function(items) {
   autoDetectEnabled = items.autoDetect;
   settings = items;
@@ -374,23 +375,8 @@ function findOptimalContainer(element) {
 function showToast(message, type = 'success') {
   // Create toast element
   const toast = document.createElement('div');
+  toast.className = `receipt-extension-toast ${type}`;
   toast.textContent = message;
-  toast.style.position = 'fixed';
-  toast.style.bottom = '20px';
-  toast.style.right = '20px';
-  toast.style.padding = '10px 20px';
-  toast.style.borderRadius = '4px';
-  toast.style.color = '#fff';
-  toast.style.zIndex = '10000';
-  toast.style.opacity = '0';
-  toast.style.transition = 'opacity 0.3s ease-in-out';
-  
-  // Set background color based on type
-  if (type === 'success') {
-    toast.style.backgroundColor = 'rgba(46, 125, 50, 0.9)';
-  } else {
-    toast.style.backgroundColor = 'rgba(211, 47, 47, 0.9)';
-  }
   
   // Add to document
   document.body.appendChild(toast);
@@ -404,7 +390,9 @@ function showToast(message, type = 'success') {
   setTimeout(() => {
     toast.style.opacity = '0';
     setTimeout(() => {
-      document.body.removeChild(toast);
+      if (toast.parentNode) {
+        document.body.removeChild(toast);
+      }
     }, 300);
   }, 3000);
 }
@@ -436,11 +424,7 @@ async function captureReceipt() {
 
     // Create visual highlight with fixed positioning
     const highlighter = document.createElement('div');
-    highlighter.style.position = 'fixed'; // Changed to fixed
-    highlighter.style.border = '2px solid rgba(66, 133, 244, 0.7)';
-    highlighter.style.backgroundColor = 'rgba(66, 133, 244, 0.1)';
-    highlighter.style.zIndex = '9999';
-    highlighter.style.pointerEvents = 'none';
+    highlighter.className = 'receipt-extension-highlighter';
     Object.assign(highlighter.style, {
       left: (rect.left - padding) + 'px',
       top: (rect.top - padding) + 'px',
@@ -487,9 +471,15 @@ async function captureReceipt() {
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0];
     const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
-    const websiteStr = window.location.hostname.replace(/^www\./, '');
+    
+    let websiteStr = 'unknown';
+    try {
+      websiteStr = window.location.hostname.replace(/^www\./, '') || 'unknown';
+    } catch (e) {
+      console.warn('Could not get hostname:', e);
+    }
 
-    let fileName = settings.fileNameFormat
+    let fileName = (settings.fileNameFormat || 'receipt_{date}_{time}')
       .replace('{date}', dateStr)
       .replace('{time}', timeStr)
       .replace('{website}', websiteStr);
@@ -504,16 +494,23 @@ async function captureReceipt() {
       chrome.runtime.sendMessage({
         action: 'saveScreenshot',
         imageData: imageData,
-        originalUrl: window.location.href,
+        originalUrl: window.location.href || 'about:blank',
         fileName: fileName
       }, (response) => {
         if (chrome.runtime.lastError) {
+          console.error('Runtime error:', chrome.runtime.lastError);
           reject(chrome.runtime.lastError);
-        } else {
+        } else if (!response) {
+          console.error('No response from background script');
+          reject(new Error('No response from background script'));
+        } else if (response.success) {
           if (settings.showNotifications) {
             showToast('Receipt saved successfully!');
           }
           resolve(true);
+        } else {
+          console.error('Save failed:', response.error);
+          reject(new Error(response.error || 'Failed to save screenshot'));
         }
       });
     });

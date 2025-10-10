@@ -10,7 +10,8 @@
     "storage",
     "tabs",
     "notifications",
-    "contextMenus"
+    "contextMenus",
+    "identity"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -45,5 +46,11 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "oauth2": {
+    "client_id": "942081972627-kkd9ppo4gvr3viacfeafg6sj8e4d437m.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/spreadsheets"
+    ]
   }
 }

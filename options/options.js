@@ -1,3 +1,5 @@
+// options.js
+
 // Global variables
 let hasUnsavedChanges = false;
 let elements = {};
@@ -32,7 +34,7 @@ function showUnsavedChanges() {
     }
 }
 
-// Save settings function outside DOMContentLoaded
+// UPDATED: saveSettings function now includes the spreadsheetId
 function saveSettings() {
     const strongKeywords = [];
     document.querySelectorAll('#strongKeywords .keyword').forEach(element => {
@@ -53,7 +55,8 @@ function saveSettings() {
         screenshotDelay: elements.screenshotDelayToggle.checked,
         delayTime: parseInt(elements.delayTimeInput.value),
         cropScreenshot: elements.cropScreenshotToggle.checked,
-        fileNameFormat: elements.fileNameFormatInput.value || 'receipt_{date}_{time}'
+        fileNameFormat: elements.fileNameFormatInput.value || 'receipt_{date}_{time}',
+        spreadsheetId: elements.spreadsheetIdInput.value.trim() // NEW: Save spreadsheet ID
     };
 
     chrome.storage.sync.set(settings, () => {
@@ -80,7 +83,7 @@ function saveSettings() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Cache DOM elements
+    // UPDATED: Cache DOM elements
     elements = {
         autoDetectToggle: document.getElementById('autoDetect'),
         showNotificationsToggle: document.getElementById('showNotifications'),
@@ -96,7 +99,10 @@ document.addEventListener('DOMContentLoaded', function() {
         saveSettingsBtn: document.getElementById('saveSettings'),
         cropScreenshotToggle: document.getElementById('cropScreenshot'),
         fileNameFormatInput: document.getElementById('fileNameFormat'),
-        statusElement: document.getElementById('status')
+        statusElement: document.getElementById('status'),
+        connectButton: document.getElementById('connect-google'), // NEW
+        authStatus: document.getElementById('auth-status'), // NEW
+        spreadsheetIdInput: document.getElementById('spreadsheet-id') // NEW
     };
 
     // Add event listeners
@@ -104,15 +110,6 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         saveSettings();
     });
-
-    // Function to show unsaved changes warning
-    function showUnsavedChanges() {
-        if (!hasUnsavedChanges) {
-            hasUnsavedChanges = true;
-            document.getElementById('saveWarning').classList.add('show');
-            document.getElementById('saveSettings').classList.add('show-save');
-        }
-    }
 
     // Add event listeners for all inputs to detect changes
     function addChangeListeners() {
@@ -122,24 +119,28 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Get form elements
-    const autoDetectToggle = document.getElementById('autoDetect');
-    const showNotificationsToggle = document.getElementById('showNotifications');
-    const detectionThreshold = document.getElementById('detectionThreshold');
-    const strongKeywordsContainer = document.getElementById('strongKeywords');
-    const supportingKeywordsContainer = document.getElementById('supportingKeywords');
-    const newStrongKeywordInput = document.getElementById('newStrongKeyword');
-    const addStrongKeywordBtn = document.getElementById('addStrongKeyword');
-    const newSupportingKeywordInput = document.getElementById('newSupportingKeyword');
-    const addSupportingKeywordBtn = document.getElementById('addSupportingKeyword');
-    const screenshotDelayToggle = document.getElementById('screenshotDelay');
-    const delayTimeInput = document.getElementById('delayTime');
-    const saveSettingsBtn = document.getElementById('saveSettings');
-    const statusElement = document.getElementById('status');
-    const cropScreenshotToggle = document.getElementById('cropScreenshot');
-    const fileNameFormatInput = document.getElementById('fileNameFormat');
+    // --- NEW: Google Auth Logic ---
+    function getAuthToken() {
+      chrome.identity.getAuthToken({ interactive: true }, (token) => {
+        if (chrome.runtime.lastError) {
+          console.error(chrome.runtime.lastError);
+          elements.authStatus.textContent = 'Error: ' + chrome.runtime.lastError.message;
+          return;
+        }
+        if (token) {
+          elements.authStatus.textContent = 'Status: Connected!';
+          elements.authStatus.style.color = 'green';
+          elements.connectButton.textContent = 'Connected';
+          elements.connectButton.disabled = true;
+          console.log('Got auth token:', token);
+        }
+      });
+    }
     
-    // Default detection keywords
+    elements.connectButton.addEventListener('click', getAuthToken);
+    // -------------------------
+     
+    // Default detection keywords (preserved from your code)
     const defaultStrongKeywords = [
       'receipt', 'invoice', 'order confirmation', 'payment confirmation',
       'tax invoice', 'billing statement', 'purchase receipt'
@@ -152,19 +153,9 @@ document.addEventListener('DOMContentLoaded', function() {
       'unit price', 'discount', 'payment', 'due date', 'account number'
     ];
     
-    // Load saved settings
-    loadSettings();
-    
-    // Event listeners
-    addStrongKeywordBtn.addEventListener('click', () => addKeyword('strong'));
-    addSupportingKeywordBtn.addEventListener('click', () => addKeyword('supporting'));
-    saveSettingsBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      saveSettings();
-    });
-    
     // Function to load settings
     function loadSettings() {
+      // UPDATED: chrome.storage.sync.get call
       chrome.storage.sync.get({
         // Default values
         autoDetect: true,
@@ -175,16 +166,18 @@ document.addEventListener('DOMContentLoaded', function() {
         screenshotDelay: true,
         delayTime: 500,
         cropScreenshot: true,
-        fileNameFormat: 'receipt_{date}_{time}'
+        fileNameFormat: 'receipt_{date}_{time}',
+        spreadsheetId: '' // NEW: Load spreadsheet ID
       }, function(items) {
         // Set form values
-        autoDetectToggle.checked = items.autoDetect;
-        showNotificationsToggle.checked = items.showNotifications;
-        detectionThreshold.value = items.detectionThreshold;
-        screenshotDelayToggle.checked = items.screenshotDelay;
-        delayTimeInput.value = items.delayTime;
-        cropScreenshotToggle.checked = items.cropScreenshot;
-        fileNameFormatInput.value = items.fileNameFormat;
+        elements.autoDetectToggle.checked = items.autoDetect;
+        elements.showNotificationsToggle.checked = items.showNotifications;
+        elements.detectionThreshold.value = items.detectionThreshold;
+        elements.screenshotDelayToggle.checked = items.screenshotDelay;
+        elements.delayTimeInput.value = items.delayTime;
+        elements.cropScreenshotToggle.checked = items.cropScreenshot;
+        elements.fileNameFormatInput.value = items.fileNameFormat;
+        elements.spreadsheetIdInput.value = items.spreadsheetId; // NEW: Set spreadsheet ID input
         
         // Render keywords
         renderKeywords('strong', items.strongKeywords);
@@ -192,13 +185,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Update sensitivity description
         updateSensitivityDescription(items.detectionThreshold);
+
+        // NEW: Check initial auth status on load
+        chrome.identity.getAuthToken({ interactive: false }, (token) => {
+            if (token) {
+                elements.authStatus.textContent = 'Status: Connected!';
+                elements.authStatus.style.color = 'green';
+                elements.connectButton.textContent = 'Connected';
+                elements.connectButton.disabled = true;
+            }
+        });
       });
 
-      // Add to the end of loadSettings function
       addChangeListeners();
     }
     
-    // Add new function to update sensitivity description
+    // Call loadSettings to initialize the page
+    loadSettings();
+    
+    // Event listeners (preserved from your code)
+    elements.addStrongKeywordBtn.addEventListener('click', () => addKeyword('strong'));
+    elements.addSupportingKeywordBtn.addEventListener('click', () => addKeyword('supporting'));
+    
     function updateSensitivityDescription(threshold) {
       const description = document.getElementById('sensitivityDescription');
       if (description) {
@@ -212,62 +220,8 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
-    // Function to save settings
-    function saveSettings() {
-      // Get current strong keywords
-      const strongKeywords = [];
-      document.querySelectorAll('#strongKeywords .keyword').forEach(element => {
-        strongKeywords.push(element.dataset.keyword);
-      });
-      
-      // Get current supporting keywords
-      const supportingKeywords = [];
-      document.querySelectorAll('#supportingKeywords .keyword').forEach(element => {
-        supportingKeywords.push(element.dataset.keyword);
-      });
-      
-      // Save all settings
-      const settings = {
-        autoDetect: autoDetectToggle.checked,
-        showNotifications: showNotificationsToggle.checked,
-        detectionThreshold: parseInt(detectionThreshold.value),
-        strongKeywords: strongKeywords,
-        supportingKeywords: supportingKeywords,
-        screenshotDelay: screenshotDelayToggle.checked,
-        delayTime: parseInt(delayTimeInput.value),
-        cropScreenshot: cropScreenshotToggle.checked,
-        fileNameFormat: fileNameFormatInput.value || 'receipt_{date}_{time}'
-      };
-
-      // Save to storage and notify content script
-      chrome.storage.sync.set(settings, () => {
-        if (chrome.runtime.lastError) {
-          console.error('Error saving settings:', chrome.runtime.lastError);
-          return;
-        }
-
-        // Show saved message
-        showSavedMessage();
-        
-        // Notify all tabs about the settings change
-        chrome.tabs.query({}, (tabs) => {
-          tabs.forEach(tab => {
-            try {
-              chrome.tabs.sendMessage(tab.id, {
-                action: 'settingsUpdated',
-                settings: settings
-              });
-            } catch (error) {
-              console.log('Could not update tab:', tab.id, error);
-            }
-          });
-        });
-      });
-    }
-    
-    // Function to render keywords
     function renderKeywords(type, keywords) {
-      const container = type === 'strong' ? strongKeywordsContainer : supportingKeywordsContainer;
+      const container = type === 'strong' ? elements.strongKeywordsContainer : elements.supportingKeywordsContainer;
       container.innerHTML = '';
       
       keywords.forEach(keyword => {
@@ -289,17 +243,14 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
     
-    // Function to add new keyword
     function addKeyword(type) {
-      const input = type === 'strong' ? newStrongKeywordInput : newSupportingKeywordInput;
+      const input = type === 'strong' ? elements.newStrongKeywordInput : elements.newSupportingKeywordInput;
       const keyword = input.value.trim();
       
-      if (!keyword) {
-        return;
-      }
+      if (!keyword) return;
       
-      // Create new keyword element
-      const container = type === 'strong' ? strongKeywordsContainer : supportingKeywordsContainer;
+      const container = type === 'strong' ? elements.strongKeywordsContainer : elements.supportingKeywordsContainer;
+      // ... (rest of your addKeyword logic is fine)
       const keywordElement = document.createElement('div');
       keywordElement.className = 'keyword';
       keywordElement.dataset.keyword = keyword;
@@ -319,34 +270,14 @@ document.addEventListener('DOMContentLoaded', function() {
       showUnsavedChanges();
     }
     
-    // Function to remove keyword
     function removeKeyword(type, element) {
-      const container = type === 'strong' ? strongKeywordsContainer : supportingKeywordsContainer;
+      const container = type === 'strong' ? elements.strongKeywordsContainer : elements.supportingKeywordsContainer;
       container.removeChild(element);
       showUnsavedChanges();
     }
-    
-    // Function to choose save folder
-    function chooseSaveFolder() {
-      // Chrome doesn't provide a direct way to select folders via JavaScript
-      // Instead, we'll use the downloads API to trigger a file picker
-      chrome.downloads.showDefaultFolder();
-      
-      // Show a message to the user
-      statusElement.textContent = 'Please select a folder in the opened window';
-      
-      // Since we can't directly access the folder selection dialog,
-      // we'll provide a way for users to manually enter the folder path
-      const folderPath = prompt('Enter the folder path where you want to save screenshots:');
-      
-      if (folderPath) {
-        saveFolderInput.value = folderPath;
-        statusElement.textContent = 'Save location updated';
-      }
-    }
 
-    // Add validation for the file name format
-    document.getElementById('fileNameFormat').addEventListener('input', function(e) {
+    // Add validation for the file name format (preserved from your code)
+    elements.fileNameFormatInput.addEventListener('input', function(e) {
       const value = e.target.value;
       const isValid = value.includes('{date}') || value.includes('{time}') || value.includes('{website}');
       

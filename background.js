@@ -5,35 +5,8 @@ self.addEventListener('install', (event) => console.log('Service worker installe
 
 // --- OCR and Google Sheets Logic ---
 
-const OCR_API_KEY = "K86118292388957";
-
-async function performOCR(imageData) {
-  // Simple wrapper around OCR.space — keep detailed logs for debugging
-  if (!OCR_API_KEY || OCR_API_KEY === "YOUR_API_KEY_HERE") {
-    return { success: false, error: "OCR API Key not configured." };
-  }
-  const formData = new FormData();
-  formData.append('base64Image', imageData);
-  formData.append('isOverlayRequired', 'false');
-  formData.append('apikey', OCR_API_KEY);
-  formData.append('language', 'eng');
-  formData.append('scale', 'true');
-  formData.append('OCREngine', '2');
-  try {
-    const response = await fetch('https://api.ocr.space/parse/image', { method: 'POST', body: formData });
-    const ocrResult = await response.json();
-    console.log('[OCR] Raw response:', ocrResult);
-    if (ocrResult.IsErroredOnProcessing) {
-      const errMsg = Array.isArray(ocrResult.ErrorMessage) ? ocrResult.ErrorMessage.join('; ') : (ocrResult.ErrorMessage || 'Unknown OCR error');
-      return { success: false, error: errMsg };
-    }
-    const parsed = ocrResult.ParsedResults && ocrResult.ParsedResults[0] && ocrResult.ParsedResults[0].ParsedText;
-    return { success: true, text: parsed || '' };
-  } catch (error) {
-    console.error('[OCR] Network or parsing error', error);
-    return { success: false, error: "Failed to connect to OCR service." };
-  }
-}
+// OCR is now performed in content.js using Tesseract.js
+// We just need to parse the text and log it.
 
 // --- UPGRADED PARSING LOGIC (NOW MUCH SIMPLER) ---
 function parseText(text, merchantFromPage) {
@@ -93,18 +66,18 @@ function parseText(text, merchantFromPage) {
 
   console.log('[Parser] Lines extracted:', lines.length);
   // Debug: show top lines
-  console.log('[Parser] First 10 lines:', lines.slice(0,10));
-  console.log('[Parser] Currency-like amounts found:', allAmounts.map(a => ({raw: a.raw, value: a.value}))); 
+  console.log('[Parser] First 10 lines:', lines.slice(0, 10));
+  console.log('[Parser] Currency-like amounts found:', allAmounts.map(a => ({ raw: a.raw, value: a.value })));
 
   // Find total by keywords (prefer lines that explicitly mention total)
-  const totalKeywords = ['grand total', 'order total', 'total due', 'amount due', 'amount paid', 'total:','total'];
+  const totalKeywords = ['grand total', 'order total', 'total due', 'amount due', 'amount paid', 'total:', 'total'];
   let foundTotal = null;
   let foundTotalLineIndex = -1;
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
     const lower = line.toLowerCase();
     // skip obvious subtotals and lines that look like labels
-    if (lower.replace(/\s+/g,'').includes('subtotal')) continue;
+    if (lower.replace(/\s+/g, '').includes('subtotal')) continue;
     if (lower.includes('subtotal') && lower.includes('total')) continue;
     for (const kw of totalKeywords) {
       if (lower.includes(kw)) {
@@ -146,9 +119,9 @@ function parseText(text, merchantFromPage) {
     const max = pool.reduce((a, b) => (a.value > b.value ? a : b));
     foundTotal = max;
     // attempt to find the line index where this numeric value appears
-    const approx = String(foundTotal.raw).replace(/[\s,\u00A0]/g,'');
+    const approx = String(foundTotal.raw).replace(/[\s,\u00A0]/g, '');
     for (let i = 0; i < lines.length; i++) {
-      if (lines[i].indexOf(foundTotal.raw) !== -1 || lines[i].replace(/[^0-9]/g,'').indexOf(approx) !== -1) {
+      if (lines[i].indexOf(foundTotal.raw) !== -1 || lines[i].replace(/[^0-9]/g, '').indexOf(approx) !== -1) {
         foundTotalLineIndex = i;
         break;
       }
@@ -180,7 +153,7 @@ function parseText(text, merchantFromPage) {
     if (/(receipt|invoice|order|total|subtotal|tax|qty|quantity|item|price|amount|date|time)/i.test(lower)) return false;
     if (/\d/.test(line)) return false; // contains digits -> likely not merchant name
     // Also reject lines that are just 'subtotal' with spaces/ocr artifacts
-    if (lower.replace(/\s+/g,'').includes('subtotal')) return false;
+    if (lower.replace(/\s+/g, '').includes('subtotal')) return false;
     return true;
   }
 
@@ -253,7 +226,7 @@ async function appendToSheet(data) {
             });
           }
 
-          const values = [[ data.date, data.merchant, data.total ]];
+          const values = [[data.date, data.merchant, data.total]];
           const body = { values };
           const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1:append?valueInputOption=USER_ENTERED`, {
             method: 'POST',
@@ -277,23 +250,22 @@ async function appendToSheet(data) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'processReceipt') {
     (async () => {
-      const ocrResponse = await performOCR(request.imageData);
-      if (ocrResponse.success) {
-        // Pass the merchantName from the request into the parser
-        const parsedData = parseText(ocrResponse.text, request.merchantName); 
+      // request.text now comes directly from Tesseract in content.js
+      if (request.text) {
+        const parsedData = parseText(request.text, request.merchantName);
         if (parsedData) {
-            const sheetResponse = await appendToSheet(parsedData);
-            sendResponse(sheetResponse);
+          const sheetResponse = await appendToSheet(parsedData);
+          sendResponse(sheetResponse);
         } else {
-            sendResponse({ success: false, error: "Failed to parse OCR data." });
+          sendResponse({ success: false, error: "Failed to parse OCR data." });
         }
       } else {
-        sendResponse(ocrResponse);
+        sendResponse({ success: false, error: "No text received from OCR." });
       }
     })();
     return true; // Keep channel open for async response
   }
-  
+
   // (Your other message handlers can remain here)
 });
 
